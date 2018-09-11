@@ -148,28 +148,13 @@ class TShopArticleReview extends TAdbShopArticleReview
         return $aViewVariables;
     }
 
-    /**
-     * load data from row, removing extranet user, id, etc.
-     *
-     * @param array $aRow
-     */
-    public function LoadFromRowProtected($aRow)
+    public function LoadFormData(array $formData): void
     {
-        $aData = $this->sqlData;
-        if (!is_array($aData)) {
-            $aData = array();
-        }
-        $aInvaliditems = array('id', 'data_extranet_user_id', 'datecreated', 'publish');
-        foreach ($aInvaliditems as $key) {
-            if (array_key_exists($key, $aRow)) {
-                unset($aRow[$key]);
-            }
-        }
         $oUser = TdbDataExtranetUser::GetInstance();
         if ($oUser->IsLoggedIn()) {
-            $aRow['data_extranet_user_id'] = $oUser->id;
+            $formData['data_extranet_user_id'] = $oUser->id;
         }
-        $this->LoadFromRow($aRow);
+        $this->LoadFromRow($formData);
     }
 
     /**

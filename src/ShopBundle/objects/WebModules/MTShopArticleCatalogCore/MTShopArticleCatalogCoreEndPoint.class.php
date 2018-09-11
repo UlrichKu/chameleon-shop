@@ -366,7 +366,7 @@ class MTShopArticleCatalogCoreEndPoint extends TShopUserCustomModelBase
             $oReviewItem = TdbShopArticleReview::GetNewInstance();
             /** @var $oReviewItem TdbShopArticleReview */
             $aUserData['shop_article_id'] = $this->iItemId;
-            $oReviewItem->LoadFromRowProtected($aUserData);
+            $oReviewItem->LoadFormData($aUserData);
             $oReviewItem->AllowEditByAll(true);
             $oReviewItem->Save();
 
@@ -416,6 +416,11 @@ class MTShopArticleCatalogCoreEndPoint extends TShopUserCustomModelBase
 
         // add review item and fill with user data
         $oReviewItem = TdbShopArticleReview::GetNewInstance();
+
+
+        // TODO is this the same as? $oReviewItem->WriteReview();
+
+
         /** @var $oReviewItem TdbShopArticleReview */
         $oGlobal = TGlobal::instance();
         $aReviewData = array();
@@ -431,7 +436,7 @@ class MTShopArticleCatalogCoreEndPoint extends TShopUserCustomModelBase
         $aReviewData['captcha-question'] = $this->GenerateCaptcha();
 
         if (is_array($aReviewData)) {
-            $oReviewItem->LoadFromRowProtected($aReviewData);
+            $oReviewItem->LoadFormData($aReviewData);
         }
         $this->data['oReviewEntryItem'] = &$oReviewItem;
     }

@@ -10,6 +10,7 @@
  */
 
 use ChameleonSystem\CoreBundle\Service\ActivePageServiceInterface;
+use ChameleonSystem\CoreBundle\Util\InputFilterUtilInterface;
 use ChameleonSystem\ShopArticleReviewBundle\AuthorDisplayConstants;
 
 /**
@@ -639,8 +640,8 @@ class MTPkgShopArticleReviewCore extends TUserCustomModelBase
         if ($oGlobal->UserDataExists(TdbShopArticleReview::URL_PARAM_REVIEW_ID) && $oGlobal->UserDataExists(TdbShopArticleReview::INPUT_BASE_NAME)) {
             $oEditReview = TdbShopArticleReview::GetNewInstance();
             if ($oEditReview->Load($oGlobal->GetUserData(TdbShopArticleReview::URL_PARAM_REVIEW_ID))) {
-                $aUserData = $oGlobal->GetuserData(TdbShopArticleReview::INPUT_BASE_NAME);
-                foreach ($aUserData as $sKey => $sValue) {
+                $formData = $this->GetReviewWriteData();
+                foreach ($formData as $sKey => $sValue) {
                     $oEditReview->sqlData[$sKey] = $sValue;
                 }
                 if ($this->ValidateWriteReviewData($oEditReview->sqlData)) {
@@ -700,23 +701,20 @@ class MTPkgShopArticleReviewCore extends TUserCustomModelBase
      */
     public function WriteReview()
     {
-        //validate user input...
-        $oGlobal = TGlobal::instance();
-        $aUserData = array();
+        $formData = array();
         if ($this->AllowWriteReview()) {
-            $aUserData = $this->GetReviewWriteData();
-            $oGlobal->GetuserData(TdbShopArticleReview::INPUT_BASE_NAME);
-            if ($this->ValidateWriteReviewData($aUserData)) {
+            $formData = $this->GetReviewWriteData();
+            if ($this->ValidateWriteReviewData($formData)) {
                 $oArticle = $this->GetArticleToReview();
-                $oReviewItem = $this->CreateReview($aUserData, $oArticle);
+                $oReviewItem = $this->CreateReview($formData, $oArticle);
                 $oArticle->UpdateStatsReviews();
                 $oReviewItem->SendNewReviewNotification();
                 $oMsgManager = TCMSMessageManager::GetInstance();
-                $oMsgManager->AddMessage(self::MSG_CONSUMER_NAME, 'ARTICLE-REVIEW-SUBMITTED', $aUserData);
+                $oMsgManager->AddMessage(self::MSG_CONSUMER_NAME, 'ARTICLE-REVIEW-SUBMITTED', $formData);
                 $this->RedirectToItemPage();
             }
         }
-        $this->RedirectToItemPage(null, array(TdbShopArticleReview::INPUT_BASE_NAME => $aUserData), true);
+        $this->RedirectToItemPage(null, array(TdbShopArticleReview::INPUT_BASE_NAME => $formData), true);
     }
 
     /**
@@ -734,18 +732,23 @@ class MTPkgShopArticleReviewCore extends TUserCustomModelBase
 
     protected function GetReviewWriteData()
     {
-        $oGlobal = TGlobal::instance();
-        $aUserData = $oGlobal->GetuserData(TdbShopArticleReview::INPUT_BASE_NAME);
-        $aUserData['author_name'] = $this->GetAuthorName($aUserData['author_name']);
+        $inputData = $this->getInputFilterUtil()->getFilteredInput(TdbShopArticleReview::INPUT_BASE_NAME);
+
+        $formData['author_name'] = $this->GetAuthorName($inputData['author_name']);
+        $formData['rating'] = $inputData['rating'] ?? '5';
+        $formData['title'] = $inputData['title'] ?? '';
+        $formData['comment'] = $inputData['comment'] ?? '';
+        $formData['author_email'] = $inputData['author_email'] ?? '';
+        $formData['captcha'] = $inputData['captcha'] ?? '';
 
         // force user email if user is logged in
         $oUser = TdbDataExtranetUser::GetInstance();
         if ($oUser->IsLoggedIn()) {
-            $aUserData['author_email'] = $oUser->GetUserEMail();
-            $aUserData['data_extranet_user_id'] = $oUser->id;
+            $formData['author_email'] = $oUser->GetUserEMail();
+            $formData['data_extranet_user_id'] = $oUser->id;
         }
 
-        return $aUserData;
+        return $formData;
     }
 
     /**
@@ -761,7 +764,7 @@ class MTPkgShopArticleReviewCore extends TUserCustomModelBase
         $oModuleConfiguration = $this->GetModuleConfiguration();
         $oReviewItem = TdbShopArticleReview::GetNewInstance(); /*@var $oReviewItem TdbShopArticleReview*/
         $aUserData['shop_article_id'] = $oArticle->id;
-        $oReviewItem->LoadFromRowProtected($aUserData);
+        $oReviewItem->LoadFormData($aUserData);
         if ($oModuleConfiguration->fieldManageReviews) {
             $oReviewItem->sqlData['publish'] = '0';
         } else {
@@ -1002,5 +1005,13 @@ class MTPkgShopArticleReviewCore extends TUserCustomModelBase
     private function getRedirect()
     {
         return \ChameleonSystem\CoreBundle\ServiceLocator::get('chameleon_system_core.redirect');
+    }
+
+    /**
+     * @return InputFilterUtilInterface
+     */
+    private function getInputFilterUtil()
+    {
+        return \ChameleonSystem\CoreBundle\ServiceLocator::get('chameleon_system_core.util.input_filter');
     }
 }
